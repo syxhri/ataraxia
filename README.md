@@ -59,14 +59,14 @@ result.save('./imagine.jpg') # True if success False otherwise
 ```
 
 ### Params
-|      Param      |   Type   |                                                                          Description                                                                         |                      Required                    |
-|:---------------:|:--------:|:------------------------------------------------------------------------------------------------------------------------------------------------------------:|:------------------------------------------------:|
-|     `model`     | `Models` | Set the Blackbox AI (chat) default model                                                                                                                     |        No. Default is `Models.BLACKBOXAI`        |
-|    `chat_id`    |   `str`  | Set the saved `chat_id` to load the `history` and chat data                                                                                                  |            No. Default is `None`                 |
-| `system_prompt` |   `str`  | Set the system instruction for every chat request                                                                                                            |            No. Default is `None`                 |
-|  `coding_mode`  |  `bool`  | Set coding mode. Will answer using coding context if `True`                                                                                                  |            No. Default is `False`                |
-|   `auto_save`   |  `bool`  | Will save chat data and history to `data_filepath` if `True`                                                                                                 |            No. Default is `True`                 |
-| `data_filepath` |   `str`  | File path to save chat data like model, system_prompt, coding_mode, and history. It is recommended to always insert {CHAT_ID} so that it can be loaded later |    No. Default is `./ataraxia-{CHAT_ID}.json`    |
+|      Param      |   Type   |                                                                               Description                                                                              |                      Required                    |
+|:---------------:|:--------:|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------:|:------------------------------------------------:|
+|     `model`     | `Models` | Set the Blackbox AI (chat) default model                                                                                                                               |        No. Default is `Models.BLACKBOXAI`        |
+|    `chat_id`    |   `str`  | Set the saved `chat_id` to load the `history` and chat data                                                                                                            |            No. Default is `None`                 |
+| `system_prompt` |   `str`  | Set the system instruction for every chat request                                                                                                                      |            No. Default is `None`                 |
+|  `coding_mode`  |  `bool`  | Set coding mode. Will answer using coding context if `True`                                                                                                            |            No. Default is `False`                |
+|   `auto_save`   |  `bool`  | Will save chat data and history to `data_filepath` if `True`                                                                                                           |            No. Default is `True`                 |
+| `data_filepath` |   `str`  | File path to save chat data like `model`, `system_prompt`, `coding_mode`, and `history`. It is recommended to always insert `{CHAT_ID}` so that it can be loaded later |    No. Default is `./ataraxia-{CHAT_ID}.json`    |
 
 ## Support Me
 https://trakteer.id/alfi-syahri
