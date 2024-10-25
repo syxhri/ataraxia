@@ -6,10 +6,6 @@ This is unofficial Python wrapper of [Blackbox AI](https://www.blackbox.ai)
 ```bash
 pip install ataraxia
 ```
-or
-```bash
-git clone https://github.com/syxhri/ataraxia
-```
 
 ## Usage
 ### Chat
