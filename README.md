@@ -64,5 +64,5 @@ result.save('./imagine.jpg') # True if success False otherwise
 |   `auto_save`   |  `bool`  | Will save chat data and history to `data_filepath` if `True`                                                                                                           |            No. Default is `True`                 |
 | `data_filepath` |   `str`  | File path to save chat data like `model`, `system_prompt`, `coding_mode`, and `history`. It is recommended to always insert `{CHAT_ID}` so that it can be loaded later |    No. Default is `./ataraxia-{CHAT_ID}.json`    |
 
-## Support Me
+## Buy me tanghulu
 https://trakteer.id/alfi-syahri
