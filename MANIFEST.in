@@ -1,4 +1,0 @@
-include README.md
-include LICENSE
-global-exclude *.pyc
-global-exclude __pycache__
