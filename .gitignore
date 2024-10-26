@@ -166,4 +166,3 @@ cython_debug/
 .pypirc
 setup.py
 .atx/
-pyproject.toml

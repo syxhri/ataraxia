@@ -1,0 +1,27 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ataraxia"
+version = "1.0.301"
+description = "Unofficial Python wrapper of Blackbox AI"
+readme = "README.md"
+authors = [
+    { name = "Alpiii", email = "syxhri.id@gmail.com" }
+]
+license = { file = "LICENSE" }
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+requires-python = ">=3.7"
+dependencies = [
+    "requests>=2.32.2",
+]
+
+[project.urls]
+Homepage = "https://github.com/syxhri/ataraxia"
+Issues = "https://github.com/syxhri/ataraxia/issues"
+Repository = "https://github.com/syxhri/ataraxia.git"
