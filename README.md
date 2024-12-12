@@ -1,7 +1,6 @@
-# Ataraxia 🦇
+# Ataraxia
 
-Ataraxia is unofficial Python wrapper of [Blackbox AI](https://www.blackbox.ai).
-The name ataraxia is taken from the clan of a vampire girl from a Webtoon
+Ataraxia is unofficial Python wrapper for [Blackbox AI](https://www.blackbox.ai).
 
 ## Installation
 ```bash
