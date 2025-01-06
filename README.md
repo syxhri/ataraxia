@@ -78,7 +78,8 @@ result = blackbox.deep_search('Schall meaning') # SearchResult<OK>
 print(result)
 ```
 
-### Blackbox Params
+## Params
+### Blackbox
 |      Param      |   Type   |                                                                               Description                                                                              | Required |           Default           |
 |:---------------:|:--------:|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------:|:--------:|:---------------------------:|
 |     `model`     | `Models` | Set the Blackbox AI (chat) default model                                                                                                                               |    No    |      `Model.BLACKBOXAI`     |
@@ -87,7 +88,7 @@ print(result)
 |   `auto_save`   |  `bool`  | Will save chat data and history to `save_path` if `True`                                                                                                               |    No    |            `True`           |
 |   `save_path`   |   `str`  | File path to save chat data like `model`, `instruction`, and `history`. It is recommended to always insert `{CHAT_ID}` so that it can be loaded with load_chat()       |    No    | `./ataraxia_{CHAT_ID}.json` |
 
-### Blackbox.chat Params
+### chat
 |     Param     |      Type      |                               Description                                     | Required | Default |
 |:-------------:|:--------------:|:-----------------------------------------------------------------------------:|:--------:|:-------:|
 |   `message`   |     `str`      |                              Message to send                                  |    Yes   |    -    |
