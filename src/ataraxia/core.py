@@ -1,294 +1,297 @@
-import requests, json, secrets, os, datetime, re
-from enum import Enum
-
-class ResponseError(Exception): pass
-
-class Models(Enum):
-	BLACKBOXAI = 'blackboxai'
-	BBAI = 'blackboxai'
-	ATARAXIA = 'blackboxai'
-	GPT = 'gpt-4o'
-	GPT_4O = 'gpt-4o'
-	GEMINI = 'gemini-pro'
-	GEMINI_PRO = 'gemini-pro'
-	CLAUDE = 'claude-sonnet-3.5'
-	CLAUDE_SONNET = 'claude-sonnet-3.5'
-	CLAUDE_SONNET_3_5 = 'claude-sonnet-3.5'
-
-class ChatResponse:
-	def __init__(self, **kwargs):
-		valid_data = all(key in kwargs for key in ['id', 'role', 'content'])
-		if not valid_data: raise ValueError('data not provided correctly')
-		self.___d___ = {'id': kwargs['id'], 'role': kwargs['role'], 'content': kwargs['content']}
-		self.id = kwargs['id']
-		self.role = kwargs['role']
-		self.content = kwargs['content']
-		if kwargs.get('createdAt'):
-			self.___d___['createdAt'] = kwargs['createdAt']
-			self.created_at = kwargs['createdAt']
-	
-	def __repr__(self):
-		return f'ChatResponse<{self.id}, {self.role}>'
-	
-	def __str__(self):
-		return self.content
-	
-	def __call__(self, stringify: bool = False) -> dict | str:
-		return json.dumps(self.___d___) if stringify else self.___d___
-
-class ImageResponse:
-	def __init__(self, **kwargs):
-		valid_data = all(key in kwargs for key in ['id', 'role', 'content'])
-		if not valid_data: raise ValueError('data not provided correctly')
-		self.___d___ = {'id': kwargs['id'], 'role': kwargs['role'], 'content': kwargs['content']}
-		self.id = kwargs['id']
-		self.role = kwargs['role']
-		self.content = kwargs['content']
-		if kwargs.get('createdAt'):
-			self.___d___['createdAt'] = kwargs['createdAt']
-			self.created_at = kwargs['createdAt']
-		
-		self.___parse___()
-	
-	def __repr__(self):
-		return f'ImageResponse<{self.id}>'
-	
-	def __str__(self):
-		return self.link
-	
-	def __call__(self, stringify: bool = False) -> dict | str:
-		return json.dumps(self.___d___) if stringify else self.___d___
-	
-	def ___parse___(self):
-		parsed_links = re.findall(r'\!\[(.*)\]\s?\((.*)\)', self.content)
-		if parsed_links is not None and len(parsed_links) > 0:
-			parsed_link = parsed_links[0]
-			if len(parsed_link) > 0:
-				self.link = parsed_link[1]
-			else:
-				raise ValueError('the image link is invalid')
-		else:
-			raise ResponseError('failed to generate image. the model is overload')
-			# raise ValueError('the image link is empty or invalid: ' + self.content)
-	
-	def download(self) -> bytes:
-		res = requests.get(self.link)
-		if res.ok:
-			return res.content
-		else:
-			res.raise_for_status()
-			raise Exception('failed to download image: ' + response.text)
-	
-	def save(self, image_path: str) -> bool:
-		try:
-			buffer = self.download()
-			with open(image_path, 'wb') as im:
-				im.write(buffer)
-			return True
-		except Exception as e:
-			print(e)
-			return False
+from os.path import exists
+import requests
+import validators
+from base64 import b64encode
+from .responses import ChatResponse, ImageResponse, SearchResult, ResponseError
+from .helper import generate_id as genid, uuid, format_filepath as ffp, format_date as fdt, Json
+from .helper.json import for_each
+from .constants import Model
 
 class Blackbox:
 	def __init__(
 		self,
-		model: Models = Models.BLACKBOXAI,
+		model: Model = Model.BLACKBOXAI,
 		chat_id: str | None = None,
-		system_prompt: str | None = None,
-		coding_mode: bool = False,
+		instruction: str | None = None,
 		auto_save: bool = True,
-		data_filepath: str = './ataraxia-{CHAT_ID}.json'
+		save_path: str = 'ataraxia_{CHAT_ID}.json'
 	):
-		if type(model) is not Models:
-			raise TypeError('model must be type of ataraxia.Models, not ' + type(model).__name__)
+		if type(model) is not Model:
+			raise TypeError('model must be type of ataraxia.constants.Model, not ' + type(model).__name__)
 		
 		self.model = model
-		self.system_prompt = system_prompt
-		self.coding_mode = coding_mode
+		self.instruction = instruction
 		self.auto_save = auto_save
-		self.data_filepath = data_filepath
+		self.save_path = save_path
 		self.history = []
-		self.__ids_ = {
-			'chat': chat_id or None,
-			'img2code': None
-		}
+		self.__chat_id = chat_id or None
 		
-		if self.__ids_['chat'] is not None:
-			if os.path.exists(self.__format_filepath_(self.__ids_['chat'])):
-				self.load_chat(self.__ids_['chat'])
+		if self.__chat_id is not None:
+			if exists(ffp(self.__chat_id, self.save_path)):
+				self.load_chat(self.__chat_id)
 			else:
-				self.__ids_['chat'] = None
-				raise ValueError('cannot load chat data with that id. try with different id or change the default data filepath')
+				self.__chat_id = None
+				raise ValueError('cannot find save file with that id')
+	
+	def __apireq(
+		self,
+		path: str,
+		data: dict | Json,
+		headers: dict | Json = {
+			'content_type': 'application/json',
+			'user-agent': 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.6778.2 Mobile Safari/537.36'
+		}
+	) -> requests.Response:
+		if type(data) is Json: data = data()
+		if type(headers) is Json: headers = headers()
+		response = requests.post(
+			'https://api.blackbox.ai/api' + path,
+			json=data,
+			headers=headers
+		)
+		if response.ok:
+			return response
+		else:
+			try:
+				response.raise_for_status()
+			except Exception as e:
+				raise ResponseError('api request failed. error detail:\n' + str(e))
+			raise ResponseError('api request failed. response content:\n' + response.text)
 	
 	@property
-	def chat_id(self) -> str:
-		if self.__ids_['chat']:
-			return self.__ids_['chat']
-		else:
-			raise Exception('please send message first to get chat id')
+	def chat_id(self):
+		return self.__chat_id
 	
-	def __generate_id_(self, ai_type='chat', change=True):
-		if ai_type.lower() == 'chat':
-			id = secrets.token_hex(8).replace('_', '').replace('-', '')
-			if change: self.__ids_['chat'] = id
-			return id
-		elif ai_type.lower() == 'message':
-			return secrets.token_hex(10).replace('_', '').replace('-', '')
-		elif ai_type.lower() == 'imagine':
-			return secrets.token_hex(8).replace('_', '').replace('-', '')
-		elif ai_type.lower() == 'img2code':
-			id = secrets.token_hex(16).replace('_', '').replace('-', '')
-			if change: self.__ids_['img2code'] = id
-			return id
-		else:
-			raise ValueError('ai_type must be "chat", "imagine", "message" or "img2code", not "' + ai_type + '"')
+	def change_instruction(self, instruction: str):
+		self.instruction = instruction.strip()
 	
-	def __format_filepath_(self, chat_id, filepath=None):
-		filepath = filepath if filepath is not None else self.data_filepath
-		if '{CHAT_ID}' in filepath:
-			filepath = filepath.replace('{CHAT_ID}', chat_id)
-		return filepath
-	
-	def chat(self, message: str, history: list = []) -> ChatResponse:
-		msg = message.strip()
-		hist = history if history else self.history
-		if self.__ids_['chat'] is None:
-			self.__generate_id_()
-		msg_id = self.__generate_id_('message')
-		msg_data = {'id': msg_id, 'role': 'user', 'content': msg}
-		hist.append(msg_data)
-		data = {
-			'messages': hist,
-			'id': self.__ids_['chat'],
-			'codeModelMode': self.coding_mode,
-			'userSystemPrompt': self.system_prompt,
-			'userSelectedModel': self.model.value,
-			'previewToken': None,
-			'userId': None,
-			'agentMode': {},
-			'trendingAgentMode': {},
-			'isMicMode': False,
-			'maxTokens': 1024,
-			'playgroundTopP': 0.9,
-			'playgroundTemperature': 0.7,
-			'isChromeExt': False,
-			'githubToken': None,
-			'clickedAnswer2': False,
-			'clickedAnswer3': False,
-			'clickedForceWebSearch': False,
-			'visitFromDelta': False,
-			'mobileClient': False
-		}
-		url = 'https://www.blackbox.ai/api/chat'
-		headers = {
-			'content-type': 'application/json',
-			'user-agent': 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.6778.2 Mobile Safari/537.36',
-			'referer': f'https://www.blackbox.ai/chat/{self.__ids_["chat"]}?model={self.model.value}'
-		}
-		response = requests.post(url, data=json.dumps(data), headers=headers)
-		if response.ok:
-			date = datetime.datetime.strptime(response.headers['date'], '%a, %d %b %Y %H:%M:%S GMT')
-			date_formatted = date.strftime('%Y:%m:%dT%H:%M:%S') + '.000Z'
-			res_id = self.__generate_id_('message')
-			res_data = {
-				'id': res_id,
-				'createdAt': date_formatted,
-				'role': 'assistant',
-				'content': response.text
-			}
-			hist.append(res_data)
-			self.history = hist
-			result = ChatResponse(**res_data)
-			if self.auto_save:
-				self.save_chat()
-			return result
-		else:
-			# response.raise_for_status()
-			raise ResponseError('failed to process chat. response is invalid: ' + response.text)
-	
-	def imagine(self, prompt: str) -> ImageResponse:
-		prompt = prompt.strip()
-		id = self.__generate_id_('imagine')
-		data = {
-			'messages': [
-				{
-					'id': id,
-					'content': prompt,
-					'role': 'user'
-				}
-			],
-			'id': id,
-			'codeModelMode': True,
-			'userSelectedModel': None,
-			'previewToken': None,
-			'userId': None,
-			'agentMode': {
-				'mode': True,
-				'id': 'ImageGenerationLV45LJp',
-				'name': 'Image Generation'
-			},
-			'trendingAgentMode': {},
-			'isMicMode': False,
-			'maxTokens': 1024,
-			'playgroundTopP': None,
-			'playgroundTemperature': None,
-			'isChromeExt': False,
-			'githubToken': None,
-			'clickedAnswer2': False,
-			'clickedAnswer3': False,
-			'clickedForceWebSearch': False,
-			'visitFromDelta': False,
-			'mobileClient': False
-		}
-		url = 'https://www.blackbox.ai/api/chat'
-		headers = {
-			'content-type': 'application/json',
-			'user-agent': 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.6778.2 Mobile Safari/537.36',
-			'referer': f'https://www.blackbox.ai/chat/{id}'
-		}
-		response = requests.post(url, data=json.dumps(data), headers=headers)
-		if response.ok:
-			date = datetime.datetime.strptime(response.headers['date'], '%a, %d %b %Y %H:%M:%S GMT')
-			date_formatted = date.strftime('%Y:%m:%dT%H:%M:%S') + '.000Z'
-			res_data = {
-				'id': id,
-				'createdAt': date_formatted,
-				'role': 'assistant',
-				'content': response.text
-			}
-			result = ImageResponse(**res_data)
-			return result
-		else:
-			response.raise_for_status()
-			raise ResponseError('failed to process image. response is invalid: ' + response.text)
-	
-	def set_system_prompt(self, prompt: str | None = None) -> None:
-		self.system_prompt = prompt.strip()
-	
-	def change_filepath(self, data_filepath: str) -> None:
-		self.data_filepath = data_filepath.strip()
-	
-	def save_chat(self, filepath: str | None = None) -> None:
-		with open(self.__format_filepath_(self.chat_id, filepath), 'w') as df:
-			chat_data = {
-				'chat_id': self.chat_id,
-				'model': self.model.value,
-				'system_prompt': self.system_prompt,
-				'coding_mode': self.coding_mode,
-				'history': self.history
-			}
-			df.write(json.dumps(chat_data))
+	def change_save_path(self, save_path: str):
+		self.save_path = save_path
 	
 	def load_chat(self, chat_id: str) -> dict:
 		try:
-			with open(self.__format_filepath_(chat_id)) as df:
+			with open(ffp(chat_id, self.save_path)) as df:
 				cdata = df.read()
-			chat_data = json.loads(cdata)
-			self.model = Models(chat_data['model'])
-			self.system_prompt = chat_data['system_prompt']
-			self.coding_mode = chat_data['coding_mode']
-			self.history = chat_data['history']
+			chat_data = Json(cdata)
+			self.model = Model(chat_data.model)
+			self.instruction = chat_data.instruction
+			self.history = chat_data.history
 			return chat_data
 		except Exception as e:
-			self.__ids_['chat'] = None
-			raise ValueError('failed to load saved history: ' + str(e))
+			self.__chat_id = None
+			raise Exception('failed to load saved history: ' + str(e))
+	
+	def save_chat(self, save_path: str | None = None):
+		with open(ffp(self.chat_id, save_path or self.save_path), 'w') as df:
+			chat_data = Json(
+				chat_id = self.chat_id,
+				model = self.model.value,
+				instruction = self.instruction,
+				history = self.history
+			)
+			df.write(str(chat_data))
+	
+	def chat(
+		self,
+		message: str,
+		image: str | bytes | None = None,
+		history: list = [],
+		max_tokens: int = 1024,
+		top_p: float = 0.9,
+		temperature: float = 0.7
+	) -> ChatResponse:
+		message = message.strip()
+		ch = history if history else self.history
+		if self.__chat_id is None:
+			self.__chat_id = genid(14)
+		
+		message_id = genid(16)
+		msg = Json(id=message_id, content=message, role='user')
+		if image is not None:
+			if type(image) is str:
+				if validators.url(image):
+					msg['data'] = Json(imagesData=[
+						Json(
+							filePath = 'MultipleFiles/' + image.split('/')[-1],
+							contents = 'data:image/png;base64,' + b64encode(requests.get(images).content).decode('utf-8')
+						)()
+					])()
+				elif validators.base64(image):
+					msg['data'] = Json(imagesData=[
+						Json(
+							filePath = 'MultipleFiles/image.png',
+							contents = 'data:image/png;base64,' + image
+						)()
+					])()
+				elif ';base64,' in image:
+					msg['data'] = Json(imagesData=[
+						Json(
+							filePath = 'MultipleFiles/image.png',
+							contents = image
+						)()
+					])()
+				else:
+					raise ValueError('invalid image data')
+			elif type(image) is bytes:
+				msg['data'] = Json(imagesData=[
+					Json(
+						filePath = 'MultipleFiles/image.png',
+						contents = 'data:image/png;base64,' + b64encode(image).decode('utf-8')
+					)()
+				])()
+			else:
+				raise TypeError('image type must be str (image link, base64 data) or bytes')
+		ch.append(msg())
+		data = Json(
+			messages = ch,
+			agentMode = {},
+			id = self.chat_id,
+			previewToken = None,
+			userId = None,
+			codeModelMode = False,
+			trendingAgentMode = {},
+			isMicMode = False,
+			userSystemPrompt = self.instruction,
+			maxToken = max_tokens,
+			playgroundTopP = top_p,
+			playgroundTemperature = temperature,
+			isChromeExt = False,
+			githubToken = None,
+			clickedAnswer2 = False,
+			clickedAnswer3 = False,
+			clickedForceWebSearch = False,
+			visitFromDelta = False,
+			mobileClient = False,
+			userSelectedModel = self.model.value,
+			imageGenerationMode = False
+		)
+		response = self.__apireq('/chat', data)
+		response_id = genid(16)
+		response_data = Json(
+			id = response_id,
+			content = response.text.strip(),
+			role = 'assistant',
+			createdAt = fdt(response.headers)
+		)
+		ch.append(response_data())
+		self.history = ch.copy()
+		chat_response = ChatResponse(**response_data())
+		
+		if self.auto_save:
+			self.save_chat()
+		return chat_response
+	
+	def search(self, query: str) -> list:
+		query = query.strip()
+		msg = Json(id=genid(16), content=query, role='user')
+		data = Json(
+			messages = [msg()],
+			agentMode = {},
+			id = genid(14),
+			previewToken = None,
+			userId = None,
+			codeModelMode = True,
+			trendingAgentMode = {},
+			isMicMode = False,
+			userSystemPrompt = None,
+			maxToken = 1024,
+			playgroundTopP = None,
+			playgroundTemperature = None,
+			isChromeExt = False,
+			githubToken = "",
+			clickedAnswer2 = False,
+			clickedAnswer3 = False,
+			clickedForceWebSearch = False,
+			visitFromDelta = False,
+			mobileClient = False,
+			userSelectedModel = None,
+			validated = uuid(),
+			imageGenerationMode = False,
+			webSearchModePrompt = True,
+			deepSearchMode = False,
+			domains = None,
+			vscodeClient = False
+		)
+		response = self.__apireq('/check', data)
+		response = Json(response.json())
+		if not response.results or not response.results.organic:
+			raise ResponseError('result not found')
+		
+		search_results = []
+		for_each(
+			response.results.organic,
+			lambda v: search_results.append(SearchResult(**v()))
+		)
+		return search_results
+	
+	def deep_search(self, query: str) -> list:
+		query = query.strip()
+		msg = Json(id=genid(16), content=query, role='user')
+		data = Json(
+			messages = [msg()],
+			agentMode = {},
+			id = genid(14),
+			previewToken = None,
+			userId = None,
+			codeModelMode = True,
+			trendingAgentMode = {},
+			isMicMode = False,
+			userSystemPrompt = None,
+			maxToken = 1024,
+			playgroundTopP = None,
+			playgroundTemperature = None,
+			isChromeExt = False,
+			githubToken = "",
+			clickedAnswer2 = False,
+			clickedAnswer3 = False,
+			clickedForceWebSearch = False,
+			visitFromDelta = False,
+			mobileClient = False,
+			userSelectedModel = None,
+			validated = uuid(),
+			imageGenerationMode = False,
+			webSearchModePrompt = False,
+			deepSearchMode = True,
+			domains = None,
+			vscodeClient = False
+		)
+		response = self.__apireq('/check', data)
+		return SearchResult(text=response.text)
+	
+	def imagine(self, prompt: str) -> ImageResponse:
+		prompt = prompt.strip()
+		data = Json(
+			messages = [{'id': genid(16), 'content': prompt, 'role': 'user'}],
+			id = genid(14),
+			codeModelMode = True,
+			userSelectedModel = None,
+			previewToken = None,
+			userId = None,
+			agentMode = Json(
+				mode = True,
+				id = 'ImageGenerationLV45LJp',
+				name = 'Image Generation'
+			)(),
+			trendingAgentMode = {},
+			isMicMode = False,
+			maxTokens = 1024,
+			playgroundTopP = None,
+			playgroundTemperature = None,
+			isChromeExt = False,
+			githubToken = None,
+			clickedAnswer2 = False,
+			clickedAnswer3 = False,
+			clickedForceWebSearch = False,
+			visitFromDelta = False,
+			mobileClient = False
+		)
+		response = self.__apireq('/chat', data)
+		response_id = genid(16)
+		response_data = Json(
+			id = response_id,
+			content = response.text.strip(),
+			role = 'assistant',
+			createdAt = fdt(response.headers)
+		)
+		image_response = ImageResponse(**response_data())
+		return image_response

@@ -4,11 +4,11 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ataraxia"
-version = "1.0.301"
-description = "Unofficial Python wrapper of Blackbox AI"
+version = "1.1.6"
+description = "Unofficial Python wrapper for Blackbox AI"
 readme = "README.md"
 authors = [
-    { name = "Alpiii", email = "syxhri.id@gmail.com" }
+    { name = "Alfi Syahri", email = "alfisyahri.official@gmail.com" }
 ]
 license = { file = "LICENSE" }
 classifiers = [
@@ -19,6 +19,7 @@ classifiers = [
 requires-python = ">=3.7"
 dependencies = [
     "requests>=2.32.2",
+    "validators>=0.34.0"
 ]
 
 [project.urls]
