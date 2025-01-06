@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # Ataraxia (Blackbox)
+=======
+# Ataraxia
+>>>>>>> 34c66900eef947567ff0b25b78990c1153957c33
 
 Ataraxia is unofficial Python wrapper for [Blackbox AI](https://www.blackbox.ai).
 
