@@ -1,3 +1,6 @@
+⚠️**WARNING**
+This repository has been discontinued due to a change in the endpoints in the Blackbox AI API. I'll try to update it when I have time.
+
 # Ataraxia (Blackbox)
 
 Ataraxia is unofficial Python wrapper for [Blackbox AI](https://www.blackbox.ai).
